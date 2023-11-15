@@ -56,7 +56,7 @@ localparam MM2S_LN  = 8'h28;//LENGTH
     #100;   
 
     WR({ADDRHI,S2MM_DA}, 32'hC0000000);// dest addr
-    WR({ADDRHI,S2MM_CR}, 32'h00000001);
+    WR({ADDRHI,S2MM_CR}, 32'h00001001);// [12]=interrupt enable, [0]=run
     WR({ADDRHI,S2MM_LN}, 32'h00000040);// length in bytes, write last. (DATA_WIDTH * FRAME_LEN) / 8
 
     RD({ADDRHI,S2MM_DA});
@@ -65,10 +65,17 @@ localparam MM2S_LN  = 8'h28;//LENGTH
 
     done<=1;
 
-    #600;
+    wait(dma_top_tb.top_bd_wrapper_i.s2mm_introut_0 == 1'b1);
+    WR({ADDRHI,S2MM_SR}, 32'h00001000);// clear interrupt
+
+
     WR({ADDRHI,MM2S_SA}, 32'hC0000000);// src addr
-    WR({ADDRHI,MM2S_CR}, 32'h00000001);
+    WR({ADDRHI,MM2S_CR}, 32'h00001001);// [12]=interrupt enable, [0]=run
     WR({ADDRHI,MM2S_LN}, 32'h00000040);// length in bytes, write last. (DATA_WIDTH * FRAME_LEN) / 8
+
+
+    wait(dma_top_tb.top_bd_wrapper_i.mm2s_introut_0 == 1'b1);
+    WR({ADDRHI,MM2S_SR}, 32'h00001000);// clear interrupt
 
 
   end 
