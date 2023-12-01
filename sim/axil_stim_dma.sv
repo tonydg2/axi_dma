@@ -35,26 +35,50 @@ module axil_stim_dma #
 //-------------------------------------------------------------------------------------------------
 // STIMULUS: Read/Write task control
 //-------------------------------------------------------------------------------------------------
-localparam ADDRHI       = 24'h000000;
+localparam ADDR_SG  = 24'h000010; // offset of SG bram
+localparam ADDR_DMA = 24'h000000; // offset of DMA
+localparam ADDR_MEM = 16'hC000;   // offset of memory bram
 
+// descriptor field offsets
+localparam NXTDESC  = 8'h00;
+localparam BUFADDR  = 8'h08;
+localparam CTRL     = 8'h18; 
+localparam STAT     = 8'h1C;
+
+// DMA
 localparam S2MM_CR  = 8'h30;
 localparam S2MM_SR  = 8'h34;
-localparam S2MM_DA  = 8'h48;//dest addr
-localparam S2MM_DM  = 8'h4C;//DA_MSB
-localparam S2MM_LN  = 8'h58;//LENGTH
-
+localparam S2MM_CD  = 8'h38;
+localparam S2MM_TD  = 8'h40;
 localparam MM2S_CR  = 8'h00;
 localparam MM2S_SR  = 8'h04;
-localparam MM2S_SA  = 8'h18;//source addr
-localparam MM2S_SM  = 8'h1C;//SA_MSB
-localparam MM2S_LN  = 8'h28;//LENGTH
+localparam MM2S_SA  = 8'h08;
+localparam MM2S_SM  = 8'h10;
 
 
   initial begin 
     done<=0;
-    wait(start==1);
-    #100;   
+    //wait(start==1);
+    #200;   
 
+    // load/write descriptors into SG bram
+    //S2MM
+    WR({ADDR_SG,NXTDESC}, {ADDR_SG,NXTDESC}); // this descriptor is the only descriptor, next=itself
+    WR({ADDR_SG,BUFADDR}, 32'hC0000000);
+    WR({ADDR_SG,CTRL},    {4'h0, 1'b1, 1'b1, 26'h40}); // Reserved, RXSOF, REOF, Len
+    RD({ADDR_SG,NXTDESC});
+    RD({ADDR_SG,BUFADDR});
+    RD({ADDR_SG,CTRL}   );
+    //MM2S
+
+    // config. DMA for descriptor location and initiate/start transfers
+    WR({ADDR_DMA,S2MM_CD}, {ADDR_SG,8'h00}); // must write this first before enabling DMA in CR reg! otherwise this will be RO see PG021
+    WR({ADDR_DMA,S2MM_CR}, 32'h00001001);// [12]=interrupt enable, [0]=run
+    WR({ADDR_DMA,S2MM_TD}, {ADDR_SG,8'h00});
+
+    done<=1;
+
+/*
     WR({ADDRHI,S2MM_DA}, 32'hC0000000);// dest addr
     WR({ADDRHI,S2MM_CR}, 32'h00001001);// [12]=interrupt enable, [0]=run
     WR({ADDRHI,S2MM_LN}, 32'h00000040);// length in bytes, write last. (DATA_WIDTH * FRAME_LEN) / 8
@@ -76,7 +100,7 @@ localparam MM2S_LN  = 8'h28;//LENGTH
 
     wait(dma_top_tb.top_bd_wrapper_i.mm2s_introut_0 == 1'b1);
     WR({ADDRHI,MM2S_SR}, 32'h00001000);// clear interrupt
-
+*/
 
   end 
 
