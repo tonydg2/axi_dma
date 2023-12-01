@@ -63,18 +63,22 @@ localparam MM2S_SM  = 8'h10;
 
     // load/write descriptors into SG bram
     //S2MM
-    WR({ADDR_SG,NXTDESC}, {ADDR_SG,NXTDESC}); // this descriptor is the only descriptor, next=itself
-    WR({ADDR_SG,BUFADDR}, 32'hC0000000);
-    WR({ADDR_SG,CTRL},    {4'h0, 1'b1, 1'b1, 26'h40}); // Reserved, RXSOF, REOF, Len
-    RD({ADDR_SG,NXTDESC});
-    RD({ADDR_SG,BUFADDR});
-    RD({ADDR_SG,CTRL}   );
+    /* 1st descriptor, store 8bytes - two 32bit words */
+    WR({ADDR_SG,NXTDESC}, {ADDR_SG,8'h40}); // point to next descriptor
+    WR({ADDR_SG,BUFADDR}, 32'hC0000000); // location to store data
+    WR({ADDR_SG,CTRL},    {4'h0, 1'b1, 1'b0, 26'h8}); // Reserved, RXSOF, REOF, Len
+    /* 2nd descriptor, store remaining data 56bytes */
+    WR({ADDR_SG,8'h40}, {ADDR_SG,8'h00}); // point to first descriptor
+    WR({ADDR_SG,8'h48}, 32'hC0001000); // location to store data
+    WR({ADDR_SG,8'h58}, {4'h0, 1'b0, 1'b1, 26'h38}); // Reserved, RXSOF, REOF, Len
+
+    
     //MM2S
 
     // config. DMA for descriptor location and initiate/start transfers
     WR({ADDR_DMA,S2MM_CD}, {ADDR_SG,8'h00}); // must write this first before enabling DMA in CR reg! otherwise this will be RO see PG021
     WR({ADDR_DMA,S2MM_CR}, 32'h00001001);// [12]=interrupt enable, [0]=run
-    WR({ADDR_DMA,S2MM_TD}, {ADDR_SG,8'h00});
+    WR({ADDR_DMA,S2MM_TD}, {ADDR_SG,8'h40}); // tail descriptor
 
     done<=1;
 
