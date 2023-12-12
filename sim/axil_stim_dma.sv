@@ -35,15 +35,21 @@ module axil_stim_dma #
 //-------------------------------------------------------------------------------------------------
 // STIMULUS: Read/Write task control
 //-------------------------------------------------------------------------------------------------
-localparam ADDR_SG  = 24'h000010; // offset of SG bram
+localparam ADDR_SG  = 24'h000100; // offset of SG bram
 localparam ADDR_DMA = 24'h000000; // offset of DMA
 localparam ADDR_MEM = 16'hC000;   // offset of memory bram
 
 // descriptor field offsets
-localparam NXTDESC  = 8'h00;
-localparam BUFADDR  = 8'h08;
-localparam CTRL     = 8'h18; 
-localparam STAT     = 8'h1C;
+// 1st descriptor
+localparam NXDS_0 = 8'h00; // Next Descriptor - pointer/address to next desc
+localparam BADD_0 = 8'h08; // Buffer address - address to memory data being written to / read from
+localparam CTRL_0 = 8'h18; // control
+localparam STAT_0 = 8'h1C; // status
+// 2nd desc.
+localparam NXDS_1 = 8'h40;
+localparam BADD_1 = 8'h48;
+localparam CTRL_1 = 8'h58;
+localparam STAT_1 = 8'h5C;
 
 // DMA
 localparam MM2S_CR  = 8'h00;
@@ -64,18 +70,18 @@ localparam S2MM_TD  = 8'h40;
     // load/write descriptors into SG bram
     //S2MM descriptors
     /* 1st descriptor, store 8bytes - two 32bit words */
-    WR({ADDR_SG,NXTDESC}, {ADDR_SG,8'h40}); // point to next descriptor
-    WR({ADDR_SG,BUFADDR}, 32'hC0000000); // location to store data
-    WR({ADDR_SG,CTRL},    {4'h0, 1'b1, 1'b0, 26'h8}); // Reserved, RXSOF, REOF, Len
+    WR({ADDR_SG,NXDS_0},  {ADDR_SG,NXDS_1}); // point to next descriptor
+    WR({ADDR_SG,BADD_0},  32'hC0000000); // location to store data
+    WR({ADDR_SG,CTRL_0},  {4'h0, 1'b1, 1'b0, 26'h8}); // Reserved, RXSOF, REOF, Len
     /* 2nd descriptor, store remaining data 56bytes */
-    WR({ADDR_SG,8'h40}, {ADDR_SG,8'h00}); // point to first descriptor
-    WR({ADDR_SG,8'h48}, 32'hC0001000); // location to store data
-    WR({ADDR_SG,8'h58}, {4'h0, 1'b0, 1'b1, 26'h38}); // Reserved, RXSOF, REOF, Len
+    WR({ADDR_SG,NXDS_1}, {ADDR_SG,NXDS_0}); // point to first descriptor
+    WR({ADDR_SG,BADD_1}, 32'hC0001000); // location to store data
+    WR({ADDR_SG,CTRL_1}, {4'h0, 1'b0, 1'b1, 26'h38}); // Reserved, RXSOF, REOF, Len
 
     //MM2S descriptors different location
     WR({ADDR_SG,8'h80}, {ADDR_SG,8'hC0}); // point to next descriptor
     WR({ADDR_SG,8'h88}, 32'hC0000000); // location to get data
-    WR({ADDR_SG,8'h98},    {4'h0, 1'b1, 1'b0, 26'h8}); // Reserved, RXSOF, REOF, Len
+    WR({ADDR_SG,8'h98}, {4'h0, 1'b1, 1'b0, 26'h8}); // Reserved, RXSOF, REOF, Len
     /* 2nd descriptor, store remaining data 56bytes */
     WR({ADDR_SG,8'hC0}, {ADDR_SG,8'h00}); // point to first descriptor
     WR({ADDR_SG,8'hC8}, 32'hC0001000); // location to get data

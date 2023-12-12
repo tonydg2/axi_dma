@@ -206,7 +206,7 @@ proc create_root_design { parentCell } {
 
   set S_AXIL [ create_bd_intf_port -mode Slave -vlnv xilinx.com:interface:aximm_rtl:1.0 S_AXIL ]
   set_property -dict [ list \
-   CONFIG.ADDR_WIDTH {16} \
+   CONFIG.ADDR_WIDTH {32} \
    CONFIG.ARUSER_WIDTH {0} \
    CONFIG.AWUSER_WIDTH {0} \
    CONFIG.BUSER_WIDTH {0} \
@@ -261,12 +261,12 @@ proc create_root_design { parentCell } {
   ] $axi_dma_0
 
 
-  # Create instance: axi_bram_ctrl_0, and set properties
-  set axi_bram_ctrl_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 axi_bram_ctrl_0 ]
+  # Create instance: MEM_BRAM_CTRL, and set properties
+  set MEM_BRAM_CTRL [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_bram_ctrl:4.1 MEM_BRAM_CTRL ]
 
-  # Create instance: axi_bram_ctrl_0_bram, and set properties
-  set axi_bram_ctrl_0_bram [ create_bd_cell -type ip -vlnv xilinx.com:ip:blk_mem_gen:8.4 axi_bram_ctrl_0_bram ]
-  set_property CONFIG.Memory_Type {True_Dual_Port_RAM} $axi_bram_ctrl_0_bram
+  # Create instance: MEMORY_BRAM, and set properties
+  set MEMORY_BRAM [ create_bd_cell -type ip -vlnv xilinx.com:ip:blk_mem_gen:8.4 MEMORY_BRAM ]
+  set_property CONFIG.Memory_Type {True_Dual_Port_RAM} $MEMORY_BRAM
 
 
   # Create instance: axi_smc, and set properties
@@ -282,14 +282,17 @@ proc create_root_design { parentCell } {
 
   # Create instance: SG_BRAM, and set properties
   set SG_BRAM [ create_bd_cell -type ip -vlnv xilinx.com:ip:blk_mem_gen:8.4 SG_BRAM ]
-  set_property CONFIG.Memory_Type {True_Dual_Port_RAM} $SG_BRAM
+  set_property -dict [list \
+    CONFIG.Assume_Synchronous_Clk {true} \
+    CONFIG.Memory_Type {True_Dual_Port_RAM} \
+  ] $SG_BRAM
 
 
   # Create interface connections
   connect_bd_intf_net -intf_net S_AXIL_1 [get_bd_intf_ports S_AXIL] [get_bd_intf_pins axi_smc/S02_AXI]
   connect_bd_intf_net -intf_net S_AXIS_S2MM_0_1 [get_bd_intf_ports S_AXIS_S2MM] [get_bd_intf_pins axi_dma_0/S_AXIS_S2MM]
-  connect_bd_intf_net -intf_net axi_bram_ctrl_0_BRAM_PORTA [get_bd_intf_pins axi_bram_ctrl_0_bram/BRAM_PORTA] [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTA]
-  connect_bd_intf_net -intf_net axi_bram_ctrl_0_BRAM_PORTB [get_bd_intf_pins axi_bram_ctrl_0_bram/BRAM_PORTB] [get_bd_intf_pins axi_bram_ctrl_0/BRAM_PORTB]
+  connect_bd_intf_net -intf_net axi_bram_ctrl_0_BRAM_PORTA [get_bd_intf_pins MEMORY_BRAM/BRAM_PORTA] [get_bd_intf_pins MEM_BRAM_CTRL/BRAM_PORTA]
+  connect_bd_intf_net -intf_net axi_bram_ctrl_0_BRAM_PORTB [get_bd_intf_pins MEMORY_BRAM/BRAM_PORTB] [get_bd_intf_pins MEM_BRAM_CTRL/BRAM_PORTB]
   connect_bd_intf_net -intf_net axi_bram_ctrl_1_BRAM_PORTA [get_bd_intf_pins SG_BRAM_CTRL/BRAM_PORTA] [get_bd_intf_pins SG_BRAM/BRAM_PORTA]
   connect_bd_intf_net -intf_net axi_bram_ctrl_1_BRAM_PORTB [get_bd_intf_pins SG_BRAM_CTRL/BRAM_PORTB] [get_bd_intf_pins SG_BRAM/BRAM_PORTB]
   connect_bd_intf_net -intf_net axi_dma_0_M_AXIS_MM2S [get_bd_intf_ports M_AXIS_MM2S] [get_bd_intf_pins axi_dma_0/M_AXIS_MM2S]
@@ -299,7 +302,7 @@ proc create_root_design { parentCell } {
   set_property SIM_ATTRIBUTE.MARK_SIM "true" [get_bd_intf_nets /axi_dma_0_M_AXI_S2MM]
   connect_bd_intf_net -intf_net axi_dma_0_M_AXI_SG [get_bd_intf_pins axi_dma_0/M_AXI_SG] [get_bd_intf_pins axi_smc/S03_AXI]
   set_property SIM_ATTRIBUTE.MARK_SIM "true" [get_bd_intf_nets /axi_dma_0_M_AXI_SG]
-  connect_bd_intf_net -intf_net axi_smc_M00_AXI [get_bd_intf_pins axi_smc/M00_AXI] [get_bd_intf_pins axi_bram_ctrl_0/S_AXI]
+  connect_bd_intf_net -intf_net axi_smc_M00_AXI [get_bd_intf_pins axi_smc/M00_AXI] [get_bd_intf_pins MEM_BRAM_CTRL/S_AXI]
   set_property SIM_ATTRIBUTE.MARK_SIM "true" [get_bd_intf_nets /axi_smc_M00_AXI]
   connect_bd_intf_net -intf_net axi_smc_M01_AXI [get_bd_intf_pins axi_smc/M01_AXI] [get_bd_intf_pins SG_BRAM_CTRL/S_AXI]
   set_property SIM_ATTRIBUTE.MARK_SIM "true" [get_bd_intf_nets /axi_smc_M01_AXI]
@@ -307,29 +310,29 @@ proc create_root_design { parentCell } {
   set_property SIM_ATTRIBUTE.MARK_SIM "true" [get_bd_intf_nets /axi_smc_M02_AXI]
 
   # Create port connections
-  connect_bd_net -net axi_bram_ctrl_0_bram_rsta_busy [get_bd_pins axi_bram_ctrl_0_bram/rsta_busy] [get_bd_ports rsta_busy_0]
-  connect_bd_net -net axi_bram_ctrl_0_bram_rstb_busy [get_bd_pins axi_bram_ctrl_0_bram/rstb_busy] [get_bd_ports rstb_busy_0]
+  connect_bd_net -net axi_bram_ctrl_0_bram_rsta_busy [get_bd_pins MEMORY_BRAM/rsta_busy] [get_bd_ports rsta_busy_0]
+  connect_bd_net -net axi_bram_ctrl_0_bram_rstb_busy [get_bd_pins MEMORY_BRAM/rstb_busy] [get_bd_ports rstb_busy_0]
   connect_bd_net -net axi_dma_0_mm2s_introut [get_bd_pins axi_dma_0/mm2s_introut] [get_bd_ports mm2s_introut_0]
   connect_bd_net -net axi_dma_0_mm2s_prmry_reset_out_n [get_bd_pins axi_dma_0/mm2s_prmry_reset_out_n] [get_bd_ports mm2s_prmry_reset_out_n_0]
   connect_bd_net -net axi_dma_0_s2mm_introut [get_bd_pins axi_dma_0/s2mm_introut] [get_bd_ports s2mm_introut_0]
   connect_bd_net -net axi_dma_0_s2mm_prmry_reset_out_n [get_bd_pins axi_dma_0/s2mm_prmry_reset_out_n] [get_bd_ports s2mm_prmry_reset_out_n_0]
-  connect_bd_net -net axi_resetn_0_1 [get_bd_ports arstn] [get_bd_pins axi_dma_0/axi_resetn] [get_bd_pins axi_bram_ctrl_0/s_axi_aresetn] [get_bd_pins axi_smc/aresetn] [get_bd_pins SG_BRAM_CTRL/s_axi_aresetn]
-  connect_bd_net -net s_axi_lite_aclk_0_1 [get_bd_ports aclk] [get_bd_pins axi_dma_0/s_axi_lite_aclk] [get_bd_pins axi_dma_0/m_axi_mm2s_aclk] [get_bd_pins axi_smc/aclk] [get_bd_pins axi_bram_ctrl_0/s_axi_aclk] [get_bd_pins axi_dma_0/m_axi_s2mm_aclk] [get_bd_pins SG_BRAM_CTRL/s_axi_aclk] [get_bd_pins axi_dma_0/m_axi_sg_aclk]
+  connect_bd_net -net axi_resetn_0_1 [get_bd_ports arstn] [get_bd_pins axi_dma_0/axi_resetn] [get_bd_pins MEM_BRAM_CTRL/s_axi_aresetn] [get_bd_pins axi_smc/aresetn] [get_bd_pins SG_BRAM_CTRL/s_axi_aresetn]
+  connect_bd_net -net s_axi_lite_aclk_0_1 [get_bd_ports aclk] [get_bd_pins axi_dma_0/s_axi_lite_aclk] [get_bd_pins axi_dma_0/m_axi_mm2s_aclk] [get_bd_pins axi_smc/aclk] [get_bd_pins MEM_BRAM_CTRL/s_axi_aclk] [get_bd_pins axi_dma_0/m_axi_s2mm_aclk] [get_bd_pins SG_BRAM_CTRL/s_axi_aclk] [get_bd_pins axi_dma_0/m_axi_sg_aclk]
 
   # Create address segments
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_MM2S] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_S2MM] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0x00001000 -range 0x00001000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_SG] [get_bd_addr_segs SG_BRAM_CTRL/S_AXI/Mem0] -force
-  assign_bd_address -offset 0x00001000 -range 0x00001000 -target_address_space [get_bd_addr_spaces S_AXIL] [get_bd_addr_segs SG_BRAM_CTRL/S_AXI/Mem0] -force
+  assign_bd_address -offset 0xC0000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_MM2S] [get_bd_addr_segs MEM_BRAM_CTRL/S_AXI/Mem0] -force
+  assign_bd_address -offset 0xC0000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_S2MM] [get_bd_addr_segs MEM_BRAM_CTRL/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_SG] [get_bd_addr_segs SG_BRAM_CTRL/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x00010000 -range 0x00010000 -target_address_space [get_bd_addr_spaces S_AXIL] [get_bd_addr_segs SG_BRAM_CTRL/S_AXI/Mem0] -force
   assign_bd_address -offset 0x00000000 -range 0x00001000 -target_address_space [get_bd_addr_spaces S_AXIL] [get_bd_addr_segs axi_dma_0/S_AXI_LITE/Reg] -force
 
   # Exclude Address Segments
-  exclude_bd_addr_seg -target_address_space [get_bd_addr_spaces S_AXIL] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0]
+  exclude_bd_addr_seg -target_address_space [get_bd_addr_spaces S_AXIL] [get_bd_addr_segs MEM_BRAM_CTRL/S_AXI/Mem0]
   exclude_bd_addr_seg -offset 0x00001000 -range 0x00001000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_MM2S] [get_bd_addr_segs SG_BRAM_CTRL/S_AXI/Mem0]
   exclude_bd_addr_seg -offset 0x00000000 -range 0x00001000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_MM2S] [get_bd_addr_segs axi_dma_0/S_AXI_LITE/Reg]
   exclude_bd_addr_seg -offset 0x00001000 -range 0x00001000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_S2MM] [get_bd_addr_segs SG_BRAM_CTRL/S_AXI/Mem0]
   exclude_bd_addr_seg -offset 0x00000000 -range 0x00001000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_S2MM] [get_bd_addr_segs axi_dma_0/S_AXI_LITE/Reg]
-  exclude_bd_addr_seg -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_SG] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0]
+  exclude_bd_addr_seg -offset 0xC0000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_SG] [get_bd_addr_segs MEM_BRAM_CTRL/S_AXI/Mem0]
   exclude_bd_addr_seg -offset 0x00000000 -range 0x00001000 -target_address_space [get_bd_addr_spaces axi_dma_0/Data_SG] [get_bd_addr_segs axi_dma_0/S_AXI_LITE/Reg]
 
 
