@@ -41,15 +41,19 @@ module dma_top_tb ;
   logic         S_AXIL_wvalid  =0   ;     
 
   logic [31:0] S2MM_tdata='0 ;
-  logic [ 3:0] S2MM_tkeep='0 ;
+  logic [ 3:0] S2MM_tkeep='0 ,S2MM_tdest='0;
   logic S2MM_tlast='0, S2MM_tready='0, S2MM_tvalid='0;
-
+  logic [ 7:0] S2MM_tid='0;
+  logic [15:0] S2MM_tuser='0;
 
   top_bd_wrapper  top_bd_wrapper_i (
     .M_AXIS_MM2S_tdata        (                 ),
+    .M_AXIS_MM2S_tdest        (                 ),
+    .M_AXIS_MM2S_tid          (                 ),
     .M_AXIS_MM2S_tkeep        (                 ),
     .M_AXIS_MM2S_tlast        (                 ),
     .M_AXIS_MM2S_tready       ('1               ),
+    .M_AXIS_MM2S_tuser        (                 ),
     .M_AXIS_MM2S_tvalid       (                 ),
     .S_AXIL_araddr            (S_AXIL_araddr    ),
     .S_AXIL_arready           (S_AXIL_arready   ),
@@ -70,19 +74,16 @@ module dma_top_tb ;
     .S_AXIL_wready            (S_AXIL_wready    ),
     .S_AXIL_wvalid            (S_AXIL_wvalid    ),
     .S_AXIL_wstrb             ('1),
-    .S_AXIS_S2MM_tdata        (S2MM_tdata       ),                    
+    .S_AXIS_S2MM_tdata        (S2MM_tdata       ),
+    .S_AXIS_S2MM_tdest        (S2MM_tdest       ),
+    .S_AXIS_S2MM_tid          (S2MM_tid         ),
     .S_AXIS_S2MM_tkeep        (S2MM_tkeep       ),              
     .S_AXIS_S2MM_tlast        (S2MM_tlast       ),              
     .S_AXIS_S2MM_tready       (S2MM_tready      ),              
+    .S_AXIS_S2MM_tuser        (S2MM_tuser       ),
     .S_AXIS_S2MM_tvalid       (S2MM_tvalid      ),              
     .aclk                     (clk              ),      
-    .arstn                    (rstn             ),      
-    .mm2s_introut_0           (),
-    .mm2s_prmry_reset_out_n_0 (),
-    .rsta_busy_0              (),
-    .rstb_busy_0              (),
-    .s2mm_introut_0           (),
-    .s2mm_prmry_reset_out_n_0 ()
+    .arstn                    (rstn             )
   );
 
 
@@ -120,15 +121,15 @@ module dma_top_tb ;
   axis_stim  # (
     .DATA_WIDTH	    (32),
     .FRAME_LENGTH   (16),
-    .NUM_FRAMES     (1),
+    .NUM_FRAMES     (2),
     .CNTR_WIDTH     (4),
     .FIXED_DATA     (28'h666A500),
-//    .FIXED_DATA     ('1),
-    .FRAME_DELAY    (100ns)
+    .FRAME_DELAY    (1000ns)
   ) axis_stim_i (
     .clk            (clk),
     .start          (start),
     .M_AXIS_tdata   (S2MM_tdata ),
+    .M_AXIS_tdest   (S2MM_tdest ),
     .M_AXIS_tkeep   (S2MM_tkeep ),
     .M_AXIS_tlast   (S2MM_tlast ),
     .M_AXIS_tready  (S2MM_tready),

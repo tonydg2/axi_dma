@@ -1,3 +1,9 @@
+/**********************************/
+/* MCDMA   PG288 */
+/**********************************/
+
+
+
 
 `timescale 1ns / 1ps  // <time_unit>/<time_precision>
 
@@ -36,70 +42,114 @@ module axil_stim_dma #
 // STIMULUS: Read/Write task control
 //-------------------------------------------------------------------------------------------------
 localparam ADDR_SG  = 24'h000100; // offset of SG bram
-localparam ADDR_DMA = 24'h000000; // offset of DMA
+localparam ADDR_DMA = 20'h00000;  // offset of MCDMA AXIL 
 localparam ADDR_MEM = 16'hC000;   // offset of memory bram
 
 // descriptor field offsets
-// 1st descriptor
-localparam NXDS_0 = 8'h00; // Next Descriptor - pointer/address to next desc
-localparam BADD_0 = 8'h08; // Buffer address - address to memory data being written to / read from
-localparam CTRL_0 = 8'h18; // control
-localparam STAT_0 = 8'h1C; // status
-// 2nd desc.
-localparam NXDS_1 = 8'h40;
-localparam BADD_1 = 8'h48;
-localparam CTRL_1 = 8'h58;
-localparam STAT_1 = 8'h5C;
+// CH0 S2MM descriptor
+localparam NXDS_S0 = 8'h00; // Next Descriptor - pointer/address to next desc
+localparam BADD_S0 = 8'h08; // Buffer address - address to memory data being written to / read from
+localparam CTRL_S0 = 8'h14; // control
+// CH1 S2MM descriptor
+localparam NXDS_S1 = 8'h40;
+localparam BADD_S1 = 8'h48;
+localparam CTRL_S1 = 8'h54;
 
-// DMA
-localparam MM2S_CR  = 8'h00;
-localparam MM2S_SR  = 8'h04;
-localparam MM2S_CD  = 8'h08;
-localparam MM2S_TD  = 8'h10;
-localparam S2MM_CR  = 8'h30;
-localparam S2MM_SR  = 8'h34;
-localparam S2MM_CD  = 8'h38;
-localparam S2MM_TD  = 8'h40;
+// CH0 MM2S descriptor
+localparam NXDS_M0 = 8'h80; 
+localparam BADD_M0 = 8'h88; 
+localparam CTRL_M0 = 8'h94; 
+// CH1 MM2S descriptor
+localparam NXDS_M1 = 8'hC0;
+localparam BADD_M1 = 8'hC8;
+localparam CTRL_M1 = 8'hD4;
+
+// MCDMA
+localparam MM2S_CR  = 12'h000;
+localparam MM2S_CH  = 12'h008;
+localparam M_CH0CR  = 12'h040;    
+localparam M_CH0CD  = 12'h048;  
+localparam M_CH0TD  = 12'h050;
+localparam M_CH1CR  = 12'h080;    
+localparam M_CH1CD  = 12'h088;  
+localparam M_CH1TD  = 12'h090;
+
+localparam S2MM_CR  = 12'h500;
+localparam S2MM_CH  = 12'h508;
+localparam S_CH0CR  = 12'h540;    
+localparam S_CH0CD  = 12'h548;  
+localparam S_CH0TD  = 12'h550;
+localparam S_CH1CR  = 12'h580;    
+localparam S_CH1CD  = 12'h588;  
+localparam S_CH1TD  = 12'h590;
 
 
   initial begin 
     done<=0;
     //wait(start==1);
     #200;   
-
+    
+    //---------------------------------------------------------------------------------------------
     // load/write descriptors into SG bram
+    //---------------------------------------------------------------------------------------------
     //S2MM descriptors
-    /* 1st descriptor, store 8bytes - two 32bit words */
-    WR({ADDR_SG,NXDS_0},  {ADDR_SG,NXDS_1}); // point to next descriptor
-    WR({ADDR_SG,BADD_0},  32'hC0000000); // location to store data
-    WR({ADDR_SG,CTRL_0},  {4'h0, 1'b1, 1'b0, 26'h8}); // Reserved, RXSOF, REOF, Len
-    /* 2nd descriptor, store remaining data 56bytes */
-    WR({ADDR_SG,NXDS_1}, {ADDR_SG,NXDS_0}); // point to first descriptor
-    WR({ADDR_SG,BADD_1}, 32'hC0001000); // location to store data
-    WR({ADDR_SG,CTRL_1}, {4'h0, 1'b0, 1'b1, 26'h38}); // Reserved, RXSOF, REOF, Len
+    /* CH0 1st descriptor, store 8bytes - two 32bit words */
+    WR({ADDR_SG,NXDS_S0}, {ADDR_SG,NXDS_S0}); // point to next descriptor
+    WR({ADDR_SG,BADD_S0}, 32'hC0000000); // location to store data
+    WR({ADDR_SG,CTRL_S0}, {1'b1, 1'b1, 4'h0, 26'h40}); // RXSOF, REOF, Reserved, Len
+    /* CH1 1st descriptor, store 8bytes - two 32bit words */
+    WR({ADDR_SG,NXDS_S1}, {ADDR_SG,NXDS_S1}); // point to next descriptor
+    WR({ADDR_SG,BADD_S1}, 32'hC0001000); // location to store data
+    WR({ADDR_SG,CTRL_S1}, {1'b1, 1'b1, 4'h0, 26'h40}); // RXSOF, REOF, Reserved, Len
 
     //MM2S descriptors different location
-    WR({ADDR_SG,8'h80}, {ADDR_SG,8'hC0}); // point to next descriptor
-    WR({ADDR_SG,8'h88}, 32'hC0000000); // location to get data
-    WR({ADDR_SG,8'h98}, {4'h0, 1'b1, 1'b0, 26'h8}); // Reserved, RXSOF, REOF, Len
-    /* 2nd descriptor, store remaining data 56bytes */
-    WR({ADDR_SG,8'hC0}, {ADDR_SG,8'h00}); // point to first descriptor
-    WR({ADDR_SG,8'hC8}, 32'hC0001000); // location to get data
-    WR({ADDR_SG,8'hD8}, {4'h0, 1'b0, 1'b1, 26'h38}); // Reserved, RXSOF, REOF, Len
+    //CH0
+    WR({ADDR_SG,NXDS_M0}, {ADDR_SG,NXDS_M0}); // point to next descriptor
+    WR({ADDR_SG,BADD_M0}, 32'hC0001000); // location to get data
+    WR({ADDR_SG,CTRL_M0}, {1'b1, 1'b1, 4'h0, 26'h40}); // RXSOF, REOF, Reserved, Len
+    //CH1
+    WR({ADDR_SG,NXDS_M1}, {ADDR_SG,NXDS_M1}); // point to next descriptor
+    WR({ADDR_SG,BADD_M1}, 32'hC0000000); // location to get data
+    WR({ADDR_SG,CTRL_M1}, {1'b1, 1'b1, 4'h0, 26'h40}); // RXSOF, REOF, Reserved, Len
 
+    //---------------------------------------------------------------------------------------------
     //S2MM DMA config
+    //---------------------------------------------------------------------------------------------
     // config. DMA for descriptor location and initiate/start transfers
-    WR({ADDR_DMA,S2MM_CD}, {ADDR_SG,8'h00}); // must write this first before enabling DMA in CR reg! otherwise this will be RO see PG021
-    WR({ADDR_DMA,S2MM_CR}, 32'h00001001);// [12]=interrupt enable, [0]=run
-    WR({ADDR_DMA,S2MM_TD}, {ADDR_SG,8'h40}); // tail descriptor
+    WR({ADDR_DMA,S2MM_CH}, 32'h3);              // enable channels
+    WR({ADDR_DMA,S_CH0CD}, {ADDR_SG,NXDS_S0});  // CD for ch0
+    WR({ADDR_DMA,S_CH1CD}, {ADDR_SG,NXDS_S1});  // CD for ch1
+    WR({ADDR_DMA,S_CH0CR}, 32'h1);              // ch0 fetch bit
+    WR({ADDR_DMA,S_CH1CR}, 32'h1);              // ch1 fetch bit
+    WR({ADDR_DMA,S2MM_CR}, 32'h1);              // start DMA
+    WR({ADDR_DMA,S_CH0TD}, {ADDR_SG,NXDS_S0});  // TD for ch0
+    WR({ADDR_DMA,S_CH1TD}, {ADDR_SG,NXDS_S1});  // TD for ch1
 
+    #200;
     done<=1;
-    #2us;
+    #4us;
+    //---------------------------------------------------------------------------------------------
     //MM2S DMA config
-    // use identical descriptors from S2MM, in different location, should read the data that was written by S2MM and populate the M_AXIS_MM2S interface
-    WR({ADDR_DMA,MM2S_CD}, {ADDR_SG,8'h80}); // must write this first before enabling DMA in CR reg! otherwise this will be RO see PG021
-    WR({ADDR_DMA,MM2S_CR}, 32'h00001001);// [12]=interrupt enable, [0]=run
-    WR({ADDR_DMA,MM2S_TD}, {ADDR_SG,8'hC0}); // tail descriptor
+    //---------------------------------------------------------------------------------------------
+    WR({ADDR_DMA,MM2S_CH}, 32'h3);              // enable channels
+    WR({ADDR_DMA,M_CH0CD}, {ADDR_SG,NXDS_M0});  // CD for ch0
+    WR({ADDR_DMA,M_CH1CD}, {ADDR_SG,NXDS_M1});  // CD for ch1
+    WR({ADDR_DMA,M_CH0CR}, 32'h1);              // ch0 fetch bit
+    WR({ADDR_DMA,M_CH1CR}, 32'h1);              // ch1 fetch bit
+    WR({ADDR_DMA,MM2S_CR}, 32'h1);              // start DMA
+    WR({ADDR_DMA,M_CH0TD}, {ADDR_SG,NXDS_M0});  // TD for ch0
+    WR({ADDR_DMA,M_CH1TD}, {ADDR_SG,NXDS_M1});  // TD for ch1
+
+
+
+
+
+
+//    //MM2S DMA config
+//    // use identical descriptors from S2MM, in different location, should read the data that was written by S2MM and populate the M_AXIS_MM2S interface
+//    WR({ADDR_DMA,MM2S_CD}, {ADDR_SG,8'h80});  //
+//    WR({ADDR_DMA,MM2S_CR}, 32'h00001001);     //
+//    WR({ADDR_DMA,MM2S_TD}, {ADDR_SG,8'hC0});  //
 
     
     

@@ -14,6 +14,7 @@ module axis_stim #
 		input                         clk		        ,
     input                         start         ,
     output [DATA_WIDTH-1 : 0]     M_AXIS_tdata  ,
+    output [3:0]                  M_AXIS_tdest  ,
     output [(DATA_WIDTH/8)-1 : 0] M_AXIS_tkeep  ,
     output                        M_AXIS_tlast  ,
     input                         M_AXIS_tready ,
@@ -33,16 +34,18 @@ module axis_stim #
 //
 //-------------------------------------------------------------------------------------------------
 
-logic [DATA_WIDTH-1 : 0]     tdata ;
-logic [(DATA_WIDTH/8)-1 : 0] tkeep='1 ;
-logic                        tlast ;
-logic                        tready;
-logic                        tvalid;
+logic [DATA_WIDTH-1 : 0]     tdata      , tdata2 ;
+logic [3:0]                  tdest      , tdest2 ;
+logic [(DATA_WIDTH/8)-1 : 0] tkeep='1   , tkeep2='1 ;
+logic                        tlast      , tlast2 ;
+logic                        tready     , tready2;
+logic                        tvalid     , tvalid2;
 
-assign M_AXIS_tdata   = tdata ;       
-assign M_AXIS_tkeep   = tkeep ;    
-assign M_AXIS_tlast   = tlast ;    
-assign M_AXIS_tvalid  = tvalid;    
+assign M_AXIS_tdata   = tdata2 ;
+assign M_AXIS_tdest   = tdest2 ;
+assign M_AXIS_tkeep   = tkeep2 ;
+assign M_AXIS_tlast   = tlast2 ;
+assign M_AXIS_tvalid  = tvalid2;
 assign tready = M_AXIS_tready;
 
 logic [CNTR_WIDTH-1:0]          data_cnt=0;
@@ -93,10 +96,24 @@ int   num=0;
 
   //assign tdata[CNTR_WIDTH-1:0] = data_cnt;
   //assign tdata[DATA_WIDTH-1:CNTR_WIDTH] = FIXED_DATA;
-  assign tdata = {FIXED_DATA,data_cnt};
+  //assign tdata = (num == 2)? {FIXED_DATA,data_cnt} : {28'h7775B00,data_cnt};
+  assign tdata = ((num == 2) & (tvalid == 1))? {FIXED_DATA,data_cnt} : ((num == 1) & (tvalid == 1))? {28'h7775B00,data_cnt} :0;
   assign tlast = (frame_len_cnt == FRAME_LENGTH-1)? '1:0;
+  //assign tlast = ((frame_len_cnt == FRAME_LENGTH-1)&(num==1))? '1:0;
   assign tvalid = cnt_en;
 
+  // quick. fix/change this
+  //assign tdest = (num == 1)? 1:0;
+  assign tdest = ((num == 2) & (tvalid == 1))? 0 : ((num == 1) & (tvalid == 1))? 1 :0;
 
+// Register signals before sending to IP!!!!!
+// without this, there were issues with last word of frame
+  always @(posedge clk) begin 
+    tdata2   <= tdata ;
+    tdest2   <= tdest ;
+    tkeep2   <= tkeep ;
+    tlast2   <= tlast ;
+    tvalid2  <= tvalid;
+  end
 
 endmodule
