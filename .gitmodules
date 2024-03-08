@@ -1,0 +1,3 @@
+[submodule "axi_mcdma"]
+	path = axi_mcdma
+	url = https://github.com/tonydg2/axi_mcdma.git
